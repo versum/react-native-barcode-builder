@@ -25,7 +25,9 @@ export default class Barcode extends PureComponent {
     /* Set the background of the barcode. */
     background: PropTypes.string,
     /* Handle error for invalid barcode of selected format */
-    onError: PropTypes.func
+    onError: PropTypes.func,
+    /* Style for the container */
+    containerStyle: PropTypes.oneOfType([PropTypes.object, PropTypes.array])
   };
 
   static defaultProps = {
@@ -68,32 +70,36 @@ export default class Barcode extends PureComponent {
 
     if (encoded) {
       this.state.bars = this.drawSvgBarCode(encoded, this.props);
-      this.state.barCodeWidth = encoded.data.length * this.props.width;
+      const binaryGroups = encoded.data ? [encoded.data] : encoded.map(e => e.data);
+      this.state.barCodeWidth = binaryGroups.reduce((totalLength, data) => totalLength + data.length, 0) * this.props.width;
     }
   }
 
   drawSvgBarCode(encoding, options = {}) {
+    const binaryGroups = encoding.data ? [encoding.data] : encoding.map(e => e.data);
     const rects = [];
-    // binary data of barcode
-    const binary = encoding.data;
-
     let barWidth = 0;
     let x = 0;
+    let j = 0;
     let yFrom = 0;
-    // alert(JSON.stringify(options));
+    let binary = [];
 
-    for (let b = 0; b < binary.length; b++) {
-      x = b * options.width;
-      if (binary[b] === '1') {
-        barWidth++;
-      } else if (barWidth > 0) {
-        rects[rects.length] = this.drawRect(
-          x - options.width * barWidth,
-          yFrom,
-          options.width * barWidth,
-          options.height
-        );
-        barWidth = 0;
+    for (let i = 0; i < binaryGroups.length; i++) {
+      binary = binaryGroups[i];
+
+      for (let b = 0; b < binary.length; b++) {
+        x = j++ * options.width;
+        if (binary[b] === '1') {
+          barWidth++;
+        } else if (barWidth > 0) {
+          rects[rects.length] = this.drawRect(
+            x - options.width * barWidth,
+            yFrom,
+            options.width * barWidth,
+            options.height
+          );
+          barWidth = 0;
+        }
       }
     }
 
@@ -112,14 +118,6 @@ export default class Barcode extends PureComponent {
 
   drawRect(x, y, width, height) {
     return `M${x},${y}h${width}v${height}h-${width}z`;
-  }
-
-  getTotalWidthOfEncodings(encodings) {
-    let totalWidth = 0;
-    for (let i = 0; i < encodings.length; i++) {
-      totalWidth += encodings[i].width;
-    }
-    return totalWidth;
   }
 
   // encode() handles the Encoder call and builds the binary string to be rendered
@@ -167,7 +165,7 @@ export default class Barcode extends PureComponent {
       backgroundColor: this.props.background
     };
     return (
-      <View style={[styles.svgContainer, backgroundStyle]}>
+      <View style={[styles.svgContainer, backgroundStyle, this.props.containerStyle]}>
         <Surface height={this.props.height} width={this.state.barCodeWidth}>
           <Shape d={this.state.bars} fill={this.props.lineColor} />
         </Surface>
